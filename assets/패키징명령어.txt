@@ -1,0 +1,1 @@
+pyinstaller --onefile --noconsole --name 정기패치 --icon=assets/icon.ico main.py
