@@ -1,0 +1,21 @@
+[
+  {
+    "company_name": "도커서버",
+    "company_code": "",
+    "browser_id": "",
+    "browser_pw": "",
+    "browser_url": "",
+    "remote_host": "localhost",
+    "remote_port": "30022",
+    "remote_username": "root",
+    "remote_key_path": "C:/hcg/deploy/docker/ubuntu-key.pem",
+    "remote_webroot": "",
+    "jdk_version": "",
+    "server_start": "Start",
+    "server_stop": "Stop",
+    "server_log": "Log",
+    "server_ps": "Ps",
+    "mobile_yn": "N",
+    "jade_version": ""
+  }
+]
