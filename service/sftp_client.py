@@ -12,6 +12,16 @@ class SFtpClient:
         self.username = username
         self.key_path = key_path
 
+    def _open_sftp(self, client):
+        if not client:
+            self.logger.message("client가 생성되지 않았습니다.")
+            raise Exception("client가 생성되지 않았습니다.")
+
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        key = paramiko.RSAKey.from_private_key_file(self.key_path)
+        client.connect(self.host, self.port, self.username, pkey=key)
+        return client, client.open_sftp()
+
     def send_file(self, local_dir, remote_dir, file_name):
         local_file_path = posixpath.join(local_dir, file_name)
         remote_file_path = posixpath.join(remote_dir, file_name)
@@ -21,25 +31,21 @@ class SFtpClient:
             raise FileNotFoundError(f"파일이 존재하지 않습니다: {local_file_path}")
 
         client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            key = paramiko.RSAKey.from_private_key_file(self.key_path)
-            client.connect(hostname=self.host, port=self.port,
-                           username=self.username, pkey=key)
-            sftp = client.open_sftp()
+            client, sftp = self._open_sftp(client)
 
             try:
                 sftp.stat(remote_dir)
-            except IOError:
+            except IOError as e:
                 self.logger.message("원격 디렉토리가 존재하지 않습니다:", remote_dir)
-                raise Exception(f"원격 디렉토리가 존재하지 않습니다: {remote_dir}")
+                raise Exception(f"원격 디렉토리가 존재하지 않습니다: {remote_dir}") from e
 
             sftp.put(local_file_path, remote_file_path)
             self.logger.message("파일 전송 완료:", local_file_path, "->", remote_file_path)
             sftp.close()
         except Exception as e:
             self.logger.message("파일 전송 중 오류 발생:", e)
-            raise Exception(f"파일 전송 중 오류 발생: {local_file_path}")
+            raise Exception(f"파일 전송 중 오류 발생: {local_file_path}") from e
         finally:
             client.close()
 
@@ -48,22 +54,14 @@ class SFtpClient:
         remote_file_path = posixpath.join(remote_dir, file_name)
 
         client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            key = paramiko.RSAKey.from_private_key_file(self.key_path)
-            client.connect(
-                hostname=self.host,
-                port=self.port,
-                username=self.username,
-                pkey=key
-            )
-            sftp = client.open_sftp()
+            client, sftp = self._open_sftp(client)
 
             try:
                 sftp.stat(remote_file_path)
-            except IOError:
+            except IOError as e:
                 self.logger.message("원격 파일이 존재하지 않습니다:", remote_file_path)
-                raise Exception(f"원격 파일이 존재하지 않습니다: {remote_file_path}")
+                raise Exception(f"원격 파일이 존재하지 않습니다: {remote_file_path}") from e
 
             if not os.path.isdir(local_dir):
                 os.makedirs(local_dir)
@@ -73,7 +71,7 @@ class SFtpClient:
             sftp.close()
         except Exception as e:
             self.logger.message("파일 수신 중 오류 발생:", e)
-            raise Exception(f"파일 수신 중 오류 발생: {remote_file_path}")
+            raise Exception(f"파일 수신 중 오류 발생: {remote_file_path}") from e
         finally:
             client.close()
 
@@ -99,17 +97,14 @@ class SFtpClient:
             raise Exception(f"로컬 디렉토리가 존재하지 않습니다: {local_directory}")
 
         client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            key = paramiko.RSAKey.from_private_key_file(self.key_path)
-            client.connect(hostname=self.host, port=self.port, username=self.username, pkey=key)
-            sftp = client.open_sftp()
+            client, sftp = self._open_sftp(client)
 
             try:
                 sftp.stat(remote_directory)
-            except IOError:
+            except IOError as e:
                 self.logger.message("원격 디렉토리가 존재하지 않습니다:", remote_directory)
-                raise Exception(f"원격 디렉토리가 존재하지 않습니다: {remote_directory}")
+                raise Exception(f"원격 디렉토리가 존재하지 않습니다: {remote_directory}") from e
 
             for root, dirs, files in os.walk(local_directory):
                 dirs[:] = [d for d in dirs if d not in exclude_list]
