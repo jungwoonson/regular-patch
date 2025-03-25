@@ -5,11 +5,9 @@ import datetime
 
 
 class Logger:
-    def __init__(self, text_widget=None):
+    def __init__(self, text_widget=None, log_dir="./logs"):
         self.text_widget = text_widget
-        self.timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        log_dir = "./logs"
         os.makedirs(log_dir, exist_ok=True)
 
         self.log_filename = f"./{log_dir}/log_{datetime.datetime.now().strftime('%Y%m%d')}.txt"
@@ -34,7 +32,8 @@ class Logger:
             self.text_widget.see(tk.END)
             self.text_widget.configure(state="disabled")
 
-        log_line = f"[{self.timestamp}] {clean_message}\n"
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_line = f"[{timestamp}] {clean_message}\n"
 
         with open(self.log_filename, "a", encoding="utf-8") as log_file:
             log_file.write(log_line)
