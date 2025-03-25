@@ -32,5 +32,16 @@ class Config:
 
         return "/Source/WebRoot"
 
+    def get_classes_dir(self) -> str:
+        jdk_version = self.jdk_version
+        if jdk_version == "1.8":
+            return "classes 1.8"
+        elif jdk_version == "1.7":
+            return "classes 1.7"
+        else:
+            msg = "잘못된 JDK 버전입니다. config.json의 jdk_version을 확인하세요."
+            self.logger.message(msg)
+            raise Exception(msg)
+
     def get(self, field: str) -> str:
         return getattr(self, field)
