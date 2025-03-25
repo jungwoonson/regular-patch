@@ -7,6 +7,7 @@ class PatchGUI:
     def __init__(self, set_source_callback=None):
         self.set_source_callback = set_source_callback
         self.action_btns = {}
+        self.commands = None
 
         self.root = tk.Tk()
         self.root.title("패치 프로그램")
@@ -98,23 +99,24 @@ class PatchGUI:
         for widget in self.button_frame.winfo_children():
             widget.destroy()
 
-        for idx, config in enumerate(config_list):
+        for config in config_list:
             btn = tk.Button(
                 self.button_frame,
                 text=config.company_name,
                 width=20,
             )
-            btn.config(command=lambda c=config, b=btn: on_company_click(c, b))
+            btn.config(command=lambda c=config, b=btn: self.on_company_click(c, b))
             btn.pack(side="left", padx=5)
 
-        def on_company_click(conf, button):
-            if self.selected_button is not None:
-                self.selected_button.config(bg="SystemButtonFace")
-            button.config(bg="#90ee90")
-            self.selected_button = button
-            self.show_config_details(conf)
-            self.update_action_buttons(conf)
-            self.logger.message(f"서버 변경: [{conf.company_name}] {conf.remote_host}:{conf.remote_port}")
+    def on_company_click(self, conf, button):
+        if self.selected_button is not None:
+            self.selected_button.config(bg="SystemButtonFace")
+        button.config(bg="#90ee90")
+        self.selected_button = button
+
+        self.show_config_details(conf)
+        self.update_action_buttons(conf)
+        self.logger.message(f"서버 변경: [{conf.company_name}] {conf.remote_host}:{conf.remote_port}")
 
     def show_config_details(self, config):
         remote_mapping = {
@@ -140,67 +142,48 @@ class PatchGUI:
         browser_text = "\n".join(browser_info)
         self.browser_label.config(text=browser_text)
 
+    def create_button(self, config, button_text, command_name, on_click, color=None):
+        button = tk.Button(self.custom_frame, text=button_text, command=on_click)
+        if color:
+            button.config(bg=color)
+
+        key = f"{config.company_name}_{command_name}"
+        self.action_btns[key] = button
+
+    def run_async(self, func, *args):
+        threading.Thread(target=func, args=args).start()
+
+    def create_immediate_button(self, config, button_text, command_name, color=None):
+        def on_click():
+            self.run_async(self.commands.get(command_name), config)
+
+        self.create_button(config, button_text, command_name, on_click, color)
+
+    def create_confirm_button(self, config, button_text, command_name, color=None):
+        def on_click():
+            if messagebox.askyesno("확인", f"{button_text} 정말 실행하시겠습니까?"):
+                self.run_async(self.commands.get(command_name), config)
+
+        self.create_button(config, button_text, command_name, on_click, color)
+
     def init_action_buttons(self, config_list, commands):
-        def createActionButton(button_text, command_name, color=None):
-            button = tk.Button(
-                self.custom_frame,
-                text=button_text,
-                command=lambda a=config: threading.Thread(target=commands.get(command_name), args=(a,), ).start()
-            )
+        self.commands = commands
 
-            if color:
-                button.config(bg=color)
-
-            return button
-
-        def createDobulCheckButton(text, command_name, color, conf=None):
-            def on_click():
-                result = messagebox.askyesno("확인", f"{text} 정말 실행하시겠습니까?")
-                if result:
-                    threading.Thread(
-                        target=commands.get(command_name),
-                        args=(conf,),
-                    ).start()
-
-            return tk.Button(
-                self.custom_frame,
-                text=text,
-                bg=color,
-                command=on_click
-            )
-
-        for idx, config in enumerate(config_list):
+        for config in config_list:
             if not config.is_mobile():
-                list_import_btn = createActionButton("patch_list_import.sql 전송", "send_list_import", "#B0E0E6")
-                self.action_btns[f"{config.company_name}_patch_list_import_btn"] = list_import_btn
+                self.create_immediate_button(config, "patch_list_import.sql 전송", "send_list_import", "#B0E0E6")
+                self.create_immediate_button(config, "DB패치실행", "start_db_patch", "#B0E0E6")
 
-                start_patch_btn = createActionButton("DB패치실행", "start_db_patch", "#B0E0E6")
-                self.action_btns[f"{config.company_name}_start_db_patch"] = start_patch_btn
+            self.create_confirm_button(config, "WebRoot전송", "send_webroot", "#C8E6C9")
+            self.create_confirm_button(config, "classes전송", "send_classes", "#C8E6C9")
+            self.create_confirm_button(config, "시스템프로퍼티수정", "deploy_properties", "#C8E6C9")
 
-            send_webroot_btn = createDobulCheckButton("WebRoot전송", "send_webroot", "#C8E6C9", config)
-            self.action_btns[f"{config.company_name}_send_webroot"] = send_webroot_btn
+            self.create_confirm_button(config, "서버종료", "stop_server", "#FFDAB9")
+            self.create_confirm_button(config, "서버시작", "start_server", "#FFDAB9")
 
-            send_classes_btn = createDobulCheckButton("classes전송", "send_classes", "#C8E6C9", config)
-            self.action_btns[f"{config.company_name}_send_classes"] = send_classes_btn
-
-            deploy_properties_btn = createDobulCheckButton("시스템프로퍼티수정", "deploy_properties", "#C8E6C9", config)
-            self.action_btns[f"{config.company_name}_deploy_properties"] = deploy_properties_btn
-
-            stop_server_btn = createDobulCheckButton("서버종료", "stop_server", "#FFDAB9", config)
-            self.action_btns[f"{config.company_name}_stop_server"] = stop_server_btn
-
-            start_server_btn = createDobulCheckButton("서버시작", "start_server", "#FFDAB9", config)
-            self.action_btns[f"{config.company_name}_start_server"] = start_server_btn
-
-            check_server_btn = createActionButton("서버프로세스확인", "check_server_process", "#FFFACD")
-            self.action_btns[f"{config.company_name}_check_server_process"] = check_server_btn
-
-            start_log_btn = createActionButton("서버로그시작", "start_server_log", "#FFFACD")
-            self.action_btns[f"{config.company_name}_start_server_log"] = start_log_btn
-
-            stop_log_btn = createActionButton("서버로그종료", "stop_server_log", "#FFFACD")
-            self.action_btns[f"{config.company_name}_stop_server_log"] = stop_log_btn
-
+            self.create_immediate_button(config, "서버프로세스확인", "check_server_process", "#FFFACD")
+            self.create_immediate_button(config, "서버로그시작", "start_server_log", "#FFFACD")
+            self.create_immediate_button(config, "서버로그종료", "stop_server_log", "#FFFACD")
 
     def update_action_buttons(self, config):
 
