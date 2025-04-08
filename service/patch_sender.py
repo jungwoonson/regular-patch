@@ -1,8 +1,8 @@
+from infra.shared.logger import Logger
 from service.sftp_client import SFtpClient
 
-class PatchSender:
-    def __init__(self, logger, source_dir_getter):
-        self.logger = logger
+class PatchTransfer:
+    def __init__(self, source_dir_getter):
         self.get_source_dir = source_dir_getter  # 함수로 받아옴
 
     def _make_client(self, config):
@@ -22,14 +22,14 @@ class PatchSender:
         client = self._make_client(config)
         source = self.get_source_dir() + config.get_patch_webroot()
         exclude_list = ["patch_list_import.sql", "WEB-INF"]
-        self.logger.message(f"[{config.remote_host}:{config.remote_port}] webroot 전송 시작")
+        Logger().server_log(f"[{config.remote_host}:{config.remote_port}] webroot 전송 시작")
         client.transfer_directory(source, config.remote_webroot, exclude_list)
-        self.logger.message(f"[{config.remote_host}:{config.remote_port}] webroot 전송 완료")
+        Logger().server_log(f"[{config.remote_host}:{config.remote_port}] webroot 전송 완료")
 
     def send_classes(self, config):
         client = self._make_client(config)
         source = f"{self.get_source_dir()}{config.get_patch_webroot()}/WEB-INF/{config.get_classes_dir()}"
         target = f"{config.remote_webroot}/WEB-INF/classes"
-        self.logger.message(f"[{config.remote_host}:{config.remote_port}] classes 전송 시작")
+        Logger().server_log(f"[{config.remote_host}:{config.remote_port}] classes 전송 시작")
         client.transfer_directory(source, target)
-        self.logger.message(f"[{config.remote_host}:{config.remote_port}] classes 전송 완료")
+        Logger().server_log(f"[{config.remote_host}:{config.remote_port}] classes 전송 완료")

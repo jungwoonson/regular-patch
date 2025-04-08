@@ -1,13 +1,16 @@
+import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
-import threading
-from ui.logger import global_logger
+from typing import List
+
+from domain.config import Config
+from ui.button_command import ButtonCommand
+
 
 class PatchGUI:
-    def __init__(self, set_source_callback=None):
-        self.set_source_callback = set_source_callback
+    def __init__(self, remote_names: List[str], button_command: ButtonCommand):
+        self.button_command = button_command
         self.action_btns = {}
-        self.commands = None
 
         self.root = tk.Tk()
         self.root.title("패치 프로그램")
@@ -31,12 +34,13 @@ class PatchGUI:
         self.source_dir_input = tk.Entry(self.patch_frame, textvariable=self.source_dir, state="readonly")
         self.source_dir_input.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 
-        browse_button = tk.Button(self.patch_frame, text="패치루트선택", width=15, command=self.browse_directory)
+        browse_button = tk.Button(self.patch_frame, text="패치폴더선택", width=15, command=self.__browse_directory)
         browse_button.grid(row=0, column=1, padx=10, pady=10)
 
         # 회사명 버튼들
-        self.button_frame = tk.Frame(self.top_frame)
-        self.button_frame.pack(side="top", fill="x", expand=False, padx=10)
+        self.company_button_frame = tk.Frame(self.top_frame)
+        self.company_button_frame.pack(side="top", fill="x", expand=False, padx=10)
+        self.__create_company_buttons(remote_names)
 
         # 메인 content 프레임
         self.content_frame = tk.Frame(self.root)
@@ -83,117 +87,101 @@ class PatchGUI:
         self.log_text = tk.Text(self.content_frame, state="disabled")
         self.log_text.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=10, pady=(5, 10))
 
-        global_logger.set_text_widget(self.log_text)
-        self.logger = global_logger
-
-    def browse_directory(self):
+    def __browse_directory(self):
         dir_path = filedialog.askdirectory(title="패치폴더선택")
         if dir_path:
             self.source_dir_input.configure(state="normal")
             self.source_dir.set(dir_path)
             self.source_dir_input.configure(state="readonly")
-            if self.set_source_callback:
-                self.set_source_callback(dir_path)
+            self.button_command.set_patch_dir(dir_path)
 
-    def create_config_buttons(self, config_list):
-        for widget in self.button_frame.winfo_children():
+    def __create_company_buttons(self, remote_names):
+        for widget in self.company_button_frame.winfo_children():
             widget.destroy()
 
-        for config in config_list:
+        for remote_name in remote_names:
             btn = tk.Button(
-                self.button_frame,
-                text=config.company_name,
+                self.company_button_frame,
+                text=remote_name,
                 width=20,
             )
-            btn.config(command=lambda c=config, b=btn: self.on_company_click(c, b))
+            btn.config(command=lambda a=remote_name, b=btn: self.on_company_click(a, b))
             btn.pack(side="left", padx=5)
 
-    def on_company_click(self, conf, button):
+    def on_company_click(self, remote_name: str, button):
         if self.selected_button is not None:
             self.selected_button.config(bg="SystemButtonFace")
         button.config(bg="#90ee90")
         self.selected_button = button
 
-        self.show_config_details(conf)
-        self.update_action_buttons(conf)
-        self.logger.message(f"서버 변경: [{conf.company_name}] {conf.remote_host}:{conf.remote_port}")
+        config: Config = self.button_command.choose_remote(remote_name)
+        self.__show_config_details(config)
+        self.__update_action_buttons(config)
 
-    def show_config_details(self, config):
-        remote_mapping = {
-            "remote_host": "HOST",
-            "remote_port": "PORT",
-            "remote_username": "USER",
-            "remote_webroot": "WebRoot경로",
-            "jdk_version": "JDK Version"
-        }
-        remote_info = []
-        for key, label in remote_mapping.items():
-            remote_info.append(f"{label}: {config.get(key)}")
-        remote_text = "\n".join(remote_info)
-        self.remote_label.config(text=remote_text)
-
-        browser_keys = {
-            "browser_url": "URL",
-            "browser_id": "ID",
-        }
-        browser_info = []
-        for key, label in browser_keys.items():
-            browser_info.append(f"{label}: {config.get(key)}")
-        browser_text = "\n".join(browser_info)
-        self.browser_label.config(text=browser_text)
-
-    def create_button(self, config, button_text, command_name, on_click, color=None):
-        button = tk.Button(self.custom_frame, text=button_text, command=on_click)
-        if color:
-            button.config(bg=color)
-
-        key = f"{config.company_name}_{command_name}"
-        self.action_btns[key] = button
-
-    def run_async(self, func, *args):
-        threading.Thread(target=func, args=args).start()
-
-    def create_immediate_button(self, config, button_text, command_name, color=None):
-        def on_click():
-            self.run_async(self.commands.get(command_name), config)
-
-        self.create_button(config, button_text, command_name, on_click, color)
-
-    def create_confirm_button(self, config, button_text, command_name, color=None):
-        def on_click():
-            if messagebox.askyesno("확인", f"{button_text} 정말 실행하시겠습니까?"):
-                self.run_async(self.commands.get(command_name), config)
-
-        self.create_button(config, button_text, command_name, on_click, color)
-
-    def init_action_buttons(self, config_list, commands):
-        self.commands = commands
-
-        for config in config_list:
-            if not config.is_mobile():
-                self.create_immediate_button(config, "patch_list_import.sql 전송", "send_list_import", "#B0E0E6")
-                self.create_immediate_button(config, "DB패치실행", "start_db_patch", "#B0E0E6")
-
-            self.create_confirm_button(config, "WebRoot전송", "send_webroot", "#C8E6C9")
-            self.create_confirm_button(config, "classes전송", "send_classes", "#C8E6C9")
-            self.create_confirm_button(config, "시스템프로퍼티수정", "deploy_properties", "#C8E6C9")
-
-            self.create_confirm_button(config, "서버종료", "stop_server", "#FFDAB9")
-            self.create_confirm_button(config, "서버시작", "start_server", "#FFDAB9")
-
-            self.create_immediate_button(config, "서버프로세스확인", "check_server_process", "#FFFACD")
-            self.create_immediate_button(config, "서버로그시작", "start_server_log", "#FFFACD")
-            self.create_immediate_button(config, "서버로그종료", "stop_server_log", "#FFFACD")
-
-    def update_action_buttons(self, config):
+    def __update_action_buttons(self, config: Config):
 
         for btn in self.action_btns.values():
             btn.pack_forget()
 
-        prefix = f"{config.company_name}_"
+        prefix = f"{config.get_company_name()}_"
         for key, btn in self.action_btns.items():
             if key.startswith(prefix):
                 btn.pack(fill="x", pady=5)
+
+    def __show_config_details(self, config: Config):
+        remote_info = [f"remote_host: {config.get_remote_host()}",
+                       f"remote_port: {config.get_remote_port()}",
+                       f"remote_username: {config.get_remote_username()}",
+                       f"remote_webroot: {config.get_remote_webroot()}",
+                       f"jdk_version: {config.get_jdk_version()}"]
+        remote_text = "\n".join(remote_info)
+        self.remote_label.config(text=remote_text)
+
+        browser_info = [f"browser_url: {config.get_browser_url()}",
+                        f"browser_id: {config.get_browser_id()}"]
+        browser_text = "\n".join(browser_info)
+        self.browser_label.config(text=browser_text)
+
+    def __create_button(self, config, button_text, on_click, color=None):
+        button = tk.Button(self.custom_frame, text=button_text, command=on_click)
+        if color:
+            button.config(bg=color)
+
+        key = f"{config.company_name}_{button_text}"
+        self.action_btns[key] = button
+
+    def __create_immediate_button(self, config, button_text, command, color=None):
+        def on_click():
+            threading.Thread(target=command, args=config).start()
+
+        self.__create_button(config, button_text, on_click, color)
+
+    def __create_confirm_button(self, config, button_text, command, color=None):
+        def on_click():
+            if messagebox.askyesno("확인", f"{button_text} 정말 실행하시겠습니까?"):
+                threading.Thread(target=command, args=config).start()
+
+        self.__create_button(config, button_text, on_click, color)
+
+    def init_action_buttons(self, config_list):
+        for config in config_list:
+            if not config.is_mobile():
+                self.__create_immediate_button(config, "patch_list_import.sql 전송", self.button_command.transfer_patch_sql, "#B0E0E6")
+                self.__create_immediate_button(config, "DB패치실행", self.button_command.start_browser_for_db_patch, "#B0E0E6")
+
+            self.__create_confirm_button(config, "WebRoot전송", self.button_command.transfer_webroot, "#C8E6C9")
+            self.__create_confirm_button(config, "classes전송", self.button_command.transfer_classes, "#C8E6C9")
+            self.__create_confirm_button(config, "시스템프로퍼티수정", self.button_command.deploy_system_properties, "#C8E6C9")
+
+            self.__create_confirm_button(config, "서버종료", self.button_command.stop_server, "#FFDAB9")
+            self.__create_confirm_button(config, "서버시작", self.button_command.start_server, "#FFDAB9")
+
+            self.__create_immediate_button(config, "서버프로세스확인", self.button_command.check_process, "#FFFACD")
+            self.__create_immediate_button(config, "서버로그시작", self.button_command.start_server_log, "#FFFACD")
+            self.__create_immediate_button(config, "서버로그종료", self.button_command.stop_server_log, "#FFFACD")
+
+    def get_log_widget(self):
+        return self.log_text
 
     def run(self):
         self.root.mainloop()

@@ -1,11 +1,10 @@
 import os
 
-from ui.logger import global_logger
+from infra.shared.logger import Logger
 
 
 class PropertiesUpdater:
     def __init__(self):
-        self.logger = global_logger
         self.properties_path = "./system.properties"
 
     def update_system_properties(self, source_dir, is_mobile):
@@ -41,7 +40,6 @@ class PropertiesUpdater:
 
         self.save_file(self.properties_path, old_properties)
 
-
     def writeProperties(self, old_properties, patch_properties, type):
         for values in patch_properties[type]:
             updated = False
@@ -49,18 +47,18 @@ class PropertiesUpdater:
                 if line.strip().startswith("#"):
                     continue
                 if f"{values[0]}=" in line:
-                    self.logger.message(f"수정된 설정: {line} -> {values[0]}={values[1]}")
+                    Logger().log(f"수정된 설정: {line} -> {values[0]}={values[1]}")
                     old_properties[i] = f"{values[0]}={values[1]}"
                     updated = True
                     continue
 
             if not updated:
-                self.logger.message(f"추가된 설정: {values[0]}={values[1]}")
+                Logger().log(f"추가된 설정: {values[0]}={values[1]}")
                 old_properties.append(f"{values[0]}={values[1]}")
 
     def read_file(self, file_path):
         if not os.path.exists(file_path):
-            self.logger.message(f"파일이 존재하지 않습니다: {file_path}")
+            Logger().log(f"파일이 존재하지 않습니다: {file_path}")
             raise FileNotFoundError(f"파일이 존재하지 않습니다: {file_path}")
 
         with open(file_path, 'r', encoding='utf-8') as f:

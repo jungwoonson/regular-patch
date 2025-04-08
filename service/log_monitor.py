@@ -1,13 +1,13 @@
+from infra.shared.logger import Logger
 from service.ssh_client import SshClient
 
 class LogMonitor:
-    def __init__(self, logger):
-        self.logger = logger
+    def __init__(self):
         self.client = None
 
     def start(self, config):
         if self.client is not None:
-            self.logger.message("이미 실행 중인 로그가 있습니다.")
+            Logger().server_log("이미 실행 중인 로그가 있습니다.")
             return
 
         self.client = SshClient(config)
@@ -17,7 +17,7 @@ class LogMonitor:
 
     def stop(self):
         if self.client is None:
-            self.logger.message("실행 중인 로그가 없습니다.")
+            Logger().server_log("실행 중인 로그가 없습니다.")
             return
 
         self.client.stop_tail()
