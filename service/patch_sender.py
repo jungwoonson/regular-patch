@@ -1,9 +1,10 @@
+from domain.transfer_info import TransferInfo
 from infra.shared.logger import Logger
 from service.sftp_client import SFtpClient
 
 class PatchTransfer:
-    def __init__(self, source_dir_getter):
-        self.get_source_dir = source_dir_getter  # 함수로 받아옴
+    def __init__(self, transfer_info: TransferInfo):
+        self.transfer_info = transfer_info
 
     def _make_client(self, config):
         return SFtpClient(
@@ -13,10 +14,9 @@ class PatchTransfer:
             config.remote_key_path
         )
 
-    def send_patch_list_import(self, config):
+    def send_patch_list_import(self, ):
         client = self._make_client(config)
-        source = self.get_source_dir() + config.get_patch_webroot()
-        client.send_file(source, config.remote_webroot, "patch_list_import.sql")
+        client.send_file(self.transfer_info.source_dir, self.transfer_info.target_dir, "patch_list_import.sql")
 
     def send_webroot(self, config):
         client = self._make_client(config)

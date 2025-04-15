@@ -1,21 +1,22 @@
 from typing import override
 
-from infra.shared.logger import Logger
 from domain.config import Config
 from domain.config_list import ConfigList
 from domain.patch import Patch
+from infra.shared.logger import Logger
+from service.browser_service import BrowserService
 from ui.button_command import ButtonCommand
 
 
 class DefaultButtonCommand(ButtonCommand):
 
     def __init__(self, config_list: ConfigList):
-        self.config_list = config_list
-        self.patch: Patch = Patch()
+        self.config_list: ConfigList = config_list
+        self.patch = Patch()
 
     @override
     def set_patch_dir(self, patch_dir: str):
-        self.patch.set_source_dir(patch_dir)
+        self.patch.set_patch_dir(patch_dir)
         Logger().log(f"패치폴더선택: {patch_dir}")
 
     @override
@@ -31,6 +32,8 @@ class DefaultButtonCommand(ButtonCommand):
 
     @override
     def start_browser_for_db_patch(self):
+        Logger().log(f"[{self.config.get_company_name()}] DB 패치 시작")
+        BrowserService()
         pass
 
     @override

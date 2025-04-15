@@ -8,21 +8,23 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.wait import WebDriverWait
 
+from domain.config import Config
+
 
 class BrowserController:
-    def __init__(self, url, username, password, company_code, is_v03=False):
-        self.url = url
-        self.username = username
-        self.password = password
-        self.company_code = company_code
-        self.is_v03 = is_v03
+    def __init__(self, config: Config):
+        self.url = config.get_browser_url()
+        self.username = config.get_browser_id()
+        self.password = config.get_browser_pw()
+        self.company_code = config.get_company_code()
+        self.is_v03 = config.is_v03()
         self.driver = None
 
-    def start_driver(self):
+    def __start_driver(self):
         options = Options()
         self.driver = webdriver.Chrome(options=options)
 
-    def login(self):
+    def __login(self):
         username_input = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located((By.ID, "S_USER_ID"))
         )
@@ -36,7 +38,7 @@ class BrowserController:
 
         password_input.send_keys(Keys.RETURN)
 
-    def move_system_menu(self, is_v03=False):
+    def __move_system_menu(self, is_v03=False):
         sys_element = WebDriverWait(self.driver, 10).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[module_id="sys"]'))
         )
@@ -53,10 +55,10 @@ class BrowserController:
         time.sleep(1)
 
     def patch_db(self):
-        self.start_driver()
+        self.__start_driver()
         self.driver.get(self.url)
-        self.login()
-        self.move_system_menu(self.is_v03)
+        self.__login()
+        self.__move_system_menu(self.is_v03)
         element = self.driver.find_element(By.CSS_SELECTOR, 'span[menu_id="Jsys1919"]')
         self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
         element.click()
@@ -71,10 +73,10 @@ class BrowserController:
         patch_all_button.click()
 
     def create_multilingual(self):
-        self.start_driver()
+        self.__start_driver()
         self.driver.get(self.url)
-        self.login()
-        self.move_system_menu()
+        self.__login()
+        self.__move_system_menu()
         element = self.driver.find_element(By.CSS_SELECTOR, 'span[menu_id="sys121b"]')
         self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
         element.click()

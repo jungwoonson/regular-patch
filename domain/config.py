@@ -1,9 +1,3 @@
-from dataclasses import dataclass
-
-from infra.shared.logger import Logger
-
-
-@dataclass
 class Config:
     __company_name: str = ""
     __company_code: str = ""
@@ -61,7 +55,6 @@ class Config:
             return "classes 1.7"
         else:
             msg = "잘못된 JDK 버전입니다. config.json의 jdk_version을 확인하세요."
-            Logger().server_log(msg)
             raise Exception(msg)
 
     def is_equal(self, company_name) -> bool:
@@ -90,3 +83,12 @@ class Config:
 
     def get_browser_id(self):
         return self.__browser_id
+
+    def get_browser_pw(self):
+        return self.__browser_pw
+
+    def get_company_code(self):
+        return self.__company_code
+
+    def get_remote_key_path(self):
+        return self.__remote_key_path
